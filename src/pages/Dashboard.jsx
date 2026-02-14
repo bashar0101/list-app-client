@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Mic, Plus, Trash2, LogOut, Wallet, ArrowDownCircle, ArrowUpCircle, Edit2 } from 'lucide-react';
+import { Mic, Plus, Trash2, LogOut, Wallet, ArrowDownCircle, ArrowUpCircle, Edit2, LayoutDashboard } from 'lucide-react';
 import api from '../api';
 import VoiceInput from '../components/VoiceInput';
 import { worldCurrencies } from '../worldCurrencies';
 import { Search, ChevronDown, Check } from 'lucide-react';
+import { FcMoneyTransfer } from "react-icons/fc";
 
 const Dashboard = () => {
   const [lists, setLists] = useState([]);
@@ -69,7 +70,8 @@ const Dashboard = () => {
 
   const fetchTransactions = async (listId) => {
     try {
-      const res = await api.get(`/transactions/${listId}`);
+      const endpoint = listId === 'all' ? '/transactions' : `/transactions/${listId}`;
+      const res = await api.get(endpoint);
       setTransactions(res.data);
     } catch (err) {
       console.error('Error fetching transactions', err);
@@ -223,9 +225,12 @@ const Dashboard = () => {
   return (
     <div className="container" style={{ padding: '2rem 1rem' }}>
       <header className="flex-between-responsive" style={{ marginBottom: '3rem' }}>
-        <div>
-          <h1 style={{ fontWeight: '800' }}>Hello, {user.firstname}!</h1>
-          <p style={{ color: 'var(--text-muted)' }}>Keep track of your monthly spending</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <FcMoneyTransfer size={48} />
+          <div>
+            <h1 style={{ fontWeight: '800' }}>Hello, {user.firstname}!</h1>
+            <p style={{ color: 'var(--text-muted)' }}>Keep track of your monthly spending</p>
+          </div>
         </div>
         
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
@@ -345,6 +350,23 @@ const Dashboard = () => {
               </button>
             </form>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <div 
+                onClick={() => setSelectedList({ _id: 'all', name: 'Overview (All Lists)' })}
+                style={{ 
+                  padding: '1rem', 
+                  borderRadius: '0.5rem', 
+                  background: selectedList?._id === 'all' ? 'var(--primary)' : 'var(--glass)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  fontWeight: '600',
+                  transition: '0.2s'
+                }}
+              >
+                <LayoutDashboard size={18} />
+                <span>Overview (All Lists)</span>
+              </div>
               {lists.map(list => (
                 <div 
                   key={list._id} 
@@ -423,7 +445,9 @@ const Dashboard = () => {
             <>
               <div className="flex-between-responsive" style={{ marginBottom: '2rem' }}>
                 <h2>{selectedList.name}</h2>
-                <VoiceInput onResult={handleVoiceTransaction} lang={voiceLanguage} />
+                {selectedList._id !== 'all' && (
+                  <VoiceInput onResult={handleVoiceTransaction} lang={voiceLanguage} />
+                )}
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -465,7 +489,14 @@ const Dashboard = () => {
                       </div>
                     ) : (
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div style={{ fontWeight: '600' }}>{t.description}</div>
+                        <div style={{ fontWeight: '600' }}>
+                          {t.description}
+                          {selectedList._id === 'all' && t.list && (
+                            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: '0.5rem', fontWeight: '400' }}>
+                              • {t.list.name}
+                            </span>
+                          )}
+                        </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
                           <div style={{ textAlign: 'right' }}>
                             <div style={{ fontWeight: '700', color: t.type === 'spent' ? 'var(--danger)' : 'var(--success)' }}>
