@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Mic, Plus, Trash2, LogOut, Wallet, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
+import { Mic, Plus, Trash2, LogOut, Wallet, ArrowDownCircle, ArrowUpCircle, Edit2 } from 'lucide-react';
 import api from '../api';
 import VoiceInput from '../components/VoiceInput';
 import { worldCurrencies } from '../worldCurrencies';
@@ -16,6 +16,8 @@ const Dashboard = () => {
   const [isCurrencyOpen, setIsCurrencyOpen] = useState(false);
   const [currencySearch, setCurrencySearch] = useState('');
   const [voiceLanguage, setVoiceLanguage] = useState(user.preferredLanguage || 'en-US');
+  const [editingTransactionId, setEditingTransactionId] = useState(null);
+  const [editForm, setEditForm] = useState({ description: '', amount: 0, type: 'spent' });
 
   const voiceLanguages = [
     { code: 'en-US', name: 'English (US)' },
@@ -153,6 +155,21 @@ const Dashboard = () => {
       setTransactions(transactions.filter(t => t._id !== id));
     } catch (err) {
       console.error('Error deleting transaction', err);
+    }
+  };
+
+  const handleEditStart = (t) => {
+    setEditingTransactionId(t._id);
+    setEditForm({ description: t.description, amount: t.amount, type: t.type });
+  };
+
+  const handleUpdateTransaction = async (id) => {
+    try {
+      const res = await api.put(`/transactions/${id}`, editForm);
+      setTransactions(transactions.map(t => t._id === id ? res.data : t));
+      setEditingTransactionId(null);
+    } catch (err) {
+      console.error('Error updating transaction', err);
     }
   };
 
@@ -337,25 +354,74 @@ const Dashboard = () => {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {transactions.map(t => (
-                  <div key={t._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: 'var(--glass)', borderRadius: '0.5rem' }}>
-                    <div style={{ fontWeight: '600' }}>{t.description}</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontWeight: '700', color: t.type === 'spent' ? 'var(--danger)' : 'var(--success)' }}>
-                          {t.type === 'spent' ? '-' : '+'}{t.currencySymbol || currencySymbol}{t.amount}
+                  <div key={t._id} style={{ padding: '1rem', background: 'var(--glass)', borderRadius: '0.5rem' }}>
+                    {editingTransactionId === t._id ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <input 
+                            value={editForm.description}
+                            onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                            style={{ flex: 2, padding: '0.5rem', borderRadius: '0.4rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', color: 'white' }}
+                          />
+                          <input 
+                            type="number"
+                            value={editForm.amount}
+                            onChange={(e) => setEditForm({ ...editForm, amount: parseInt(e.target.value) || 0 })}
+                            style={{ flex: 1, padding: '0.5rem', borderRadius: '0.4rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', color: 'white' }}
+                          />
                         </div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{new Date(t.createdAt).toLocaleDateString()}</div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button 
+                              onClick={() => setEditForm({ ...editForm, type: 'got' })}
+                              className="btn"
+                              style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', background: editForm.type === 'got' ? 'var(--success)' : 'var(--glass)' }}
+                            >Gain</button>
+                            <button 
+                              onClick={() => setEditForm({ ...editForm, type: 'spent' })}
+                              className="btn"
+                              style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', background: editForm.type === 'spent' ? 'var(--danger)' : 'var(--glass)' }}
+                            >Spent</button>
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button onClick={() => setEditingTransactionId(null)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.8rem' }}>Cancel</button>
+                            <button onClick={() => handleUpdateTransaction(t._id)} className="btn btn-primary" style={{ padding: '0.4rem 1rem', fontSize: '0.8rem' }}>Save</button>
+                          </div>
+                        </div>
                       </div>
-                      <button 
-                        onClick={() => deleteTransaction(t._id)}
-                        className="btn-icon"
-                        style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0.5rem', borderRadius: '50%', display: 'flex', transition: '0.2s' }}
-                        onMouseEnter={(e) => e.currentTarget.style.color = 'var(--danger)'}
-                        onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
+                    ) : (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ fontWeight: '600' }}>{t.description}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontWeight: '700', color: t.type === 'spent' ? 'var(--danger)' : 'var(--success)' }}>
+                              {t.type === 'spent' ? '-' : '+'}{t.currencySymbol || currencySymbol}{t.amount}
+                            </div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{new Date(t.createdAt).toLocaleDateString()}</div>
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button 
+                              onClick={() => handleEditStart(t)}
+                              className="btn-icon"
+                              style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0.5rem', borderRadius: '50%', display: 'flex', transition: '0.2s' }}
+                              onMouseEnter={(e) => e.currentTarget.style.color = 'var(--primary)'}
+                              onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                            <button 
+                              onClick={() => deleteTransaction(t._id)}
+                              className="btn-icon"
+                              style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0.5rem', borderRadius: '50%', display: 'flex', transition: '0.2s' }}
+                              onMouseEnter={(e) => e.currentTarget.style.color = 'var(--danger)'}
+                              onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
                 {transactions.length === 0 && (
