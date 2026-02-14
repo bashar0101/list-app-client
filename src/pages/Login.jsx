@@ -28,8 +28,8 @@ const Login = () => {
   };
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', padding: '1rem' }}>
-      <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '400px' }}>
+    <div className="auth-container">
+      <div className="glass-card auth-card animate-fade-in">
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           <div style={{ background: 'var(--primary)', width: '48px', height: '48px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
             <LogIn color="white" />
