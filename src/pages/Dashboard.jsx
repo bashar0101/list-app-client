@@ -4,6 +4,7 @@ import api from '../api';
 import VoiceInput from '../components/VoiceInput';
 import { worldCurrencies } from '../worldCurrencies';
 import { Search, ChevronDown, Check } from 'lucide-react';
+import { FcMoneyTransfer } from "react-icons/fc";
 
 const Dashboard = () => {
   const [lists, setLists] = useState([]);
@@ -224,9 +225,12 @@ const Dashboard = () => {
   return (
     <div className="container" style={{ padding: '2rem 1rem' }}>
       <header className="flex-between-responsive" style={{ marginBottom: '3rem' }}>
-        <div>
-          <h1 style={{ fontWeight: '800' }}>Hello, {user.firstname}!</h1>
-          <p style={{ color: 'var(--text-muted)' }}>Keep track of your monthly spending</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <FcMoneyTransfer size={48} />
+          <div>
+            <h1 style={{ fontWeight: '800' }}>Hello, {user.firstname}!</h1>
+            <p style={{ color: 'var(--text-muted)' }}>Keep track of your monthly spending</p>
+          </div>
         </div>
         
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
