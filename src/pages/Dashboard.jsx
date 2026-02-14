@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Mic, Plus, Trash2, LogOut, Wallet, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
 import api from '../api';
 import VoiceInput from '../components/VoiceInput';
+import { worldCurrencies } from '../worldCurrencies';
+import { Search, ChevronDown, Check } from 'lucide-react';
 
 const Dashboard = () => {
   const [lists, setLists] = useState([]);
@@ -9,6 +11,34 @@ const Dashboard = () => {
   const [transactions, setTransactions] = useState([]);
   const [newListName, setNewListName] = useState('');
   const user = JSON.parse(localStorage.getItem('user'));
+  const [currency, setCurrency] = useState(user.preferredCurrency || 'USD');
+  const [currencySymbol, setCurrencySymbol] = useState(user.preferredCurrencySymbol || '$');
+  const [isCurrencyOpen, setIsCurrencyOpen] = useState(false);
+  const [currencySearch, setCurrencySearch] = useState('');
+  const [voiceLanguage, setVoiceLanguage] = useState(user.preferredLanguage || 'en-US');
+
+  const voiceLanguages = [
+    { code: 'en-US', name: 'English (US)' },
+    { code: 'ar-SA', name: 'Arabic (SA)' },
+    { code: 'tr-TR', name: 'Turkish (TR)' },
+    { code: 'es-ES', name: 'Spanish (ES)' },
+    { code: 'fr-FR', name: 'French (FR)' },
+    { code: 'de-DE', name: 'German (DE)' }
+  ];
+
+  const filteredCurrencies = worldCurrencies.filter(c => 
+    c.code.toLowerCase().includes(currencySearch.toLowerCase()) || 
+    c.name.toLowerCase().includes(currencySearch.toLowerCase())
+  );
+  const currencies = [
+    { symbol: '$', code: 'USD' },
+    { symbol: '€', code: 'EUR' },
+    { symbol: '£', code: 'GBP' },
+    { symbol: '¥', code: 'JPY' },
+    { symbol: 'SR', code: 'SAR' },
+    { symbol: 'KD', code: 'KWD' }
+    // {symbol :'', code:'TRY'}
+  ];
 
   useEffect(() => {
     fetchLists();
@@ -73,11 +103,56 @@ const Dashboard = () => {
     try {
       const res = await api.post('/transactions', {
         ...data,
+        currency,
+        currencySymbol,
         listId: selectedList._id
       });
       setTransactions([res.data, ...transactions]);
     } catch (err) {
       console.error('Error adding transaction', err);
+    }
+  };
+
+  const handleCurrencyUpdate = async (code) => {
+    const selected = worldCurrencies.find(c => c.code === code);
+    try {
+      await api.put('/auth/preferences', { 
+        preferredCurrency: selected.code, 
+        preferredCurrencySymbol: selected.symbol || code,
+        preferredLanguage: voiceLanguage 
+      });
+      setCurrency(selected.code);
+      setCurrencySymbol(selected.symbol || code);
+      // Update local storage
+      const updatedUser = { ...user, preferredCurrency: selected.code, preferredCurrencySymbol: selected.symbol || code, preferredLanguage: voiceLanguage };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+    } catch (err) {
+      console.error('Error updating currency', err);
+    }
+  };
+
+  const handleLanguageUpdate = async (langCode) => {
+    try {
+      await api.put('/auth/preferences', { 
+        preferredCurrency: currency, 
+        preferredCurrencySymbol: currencySymbol,
+        preferredLanguage: langCode 
+      });
+      setVoiceLanguage(langCode);
+      // Update local storage
+      const updatedUser = { ...user, preferredCurrency: currency, preferredCurrencySymbol: currencySymbol, preferredLanguage: langCode };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+    } catch (err) {
+      console.error('Error updating language', err);
+    }
+  };
+
+  const deleteTransaction = async (id) => {
+    try {
+      await api.delete(`/transactions/${id}`);
+      setTransactions(transactions.filter(t => t._id !== id));
+    } catch (err) {
+      console.error('Error deleting transaction', err);
     }
   };
 
@@ -91,18 +166,112 @@ const Dashboard = () => {
   const totalGot = transactions.filter(t => t.type === 'got').reduce((acc, t) => acc + t.amount, 0);
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3rem' }}>
+    <div className="container" style={{ padding: '2rem 1rem' }}>
+      <header className="flex-between-responsive" style={{ marginBottom: '3rem' }}>
         <div>
-          <h1 style={{ fontSize: '2rem', fontWeight: '800' }}>Hello, {user.firstname}!</h1>
+          <h1 style={{ fontWeight: '800' }}>Hello, {user.firstname}!</h1>
           <p style={{ color: 'var(--text-muted)' }}>Keep track of your monthly spending</p>
         </div>
-        <button onClick={logout} className="btn" style={{ background: 'var(--glass)', color: 'var(--text)' }}>
-          <LogOut size={18} /> Logout
-        </button>
+        
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+          <div className="glass-card" style={{ padding: '0.4rem 0.8rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Voice:</span>
+            <select 
+              value={voiceLanguage}
+              onChange={(e) => handleLanguageUpdate(e.target.value)}
+              style={{ background: 'transparent', border: 'none', color: 'white', fontWeight: '500', outline: 'none', cursor: 'pointer', fontSize: '0.8rem' }}
+            >
+              {voiceLanguages.map(l => (
+                <option key={l.code} value={l.code} style={{ background: '#1e293b' }}>{l.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ position: 'relative' }}>
+            <div 
+              className="glass-card" 
+              onClick={() => setIsCurrencyOpen(!isCurrencyOpen)}
+              style={{ padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', minWidth: '100px', justifyContent: 'space-between' }}
+            >
+              <span style={{ fontWeight: '700' }}>{currency}</span>
+              <ChevronDown size={14} style={{ transform: isCurrencyOpen ? 'rotate(180deg)' : 'none', transition: '0.2s' }} />
+            </div>
+            {/* ... currency dropdown remains same ... */}
+
+            {isCurrencyOpen && (
+              <div className="glass-card animate-fade-in" style={{ 
+                position: 'absolute', 
+                top: '120%', 
+                right: 0, 
+                width: '240px', 
+                zIndex: 1000, 
+                padding: '0.5rem',
+                maxHeight: '400px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.5rem',
+                boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
+              }}>
+                <div style={{ position: 'relative' }}>
+                  <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  <input 
+                    placeholder="Search currency..."
+                    value={currencySearch}
+                    onChange={(e) => setCurrencySearch(e.target.value)}
+                    autoFocus
+                    style={{ 
+                      width: '100%', 
+                      padding: '0.6rem 0.6rem 0.6rem 2rem', 
+                      background: 'rgba(255,255,255,0.05)', 
+                      border: '1px solid var(--glass-border)', 
+                      borderRadius: '0.4rem', 
+                      color: 'white',
+                      fontSize: '0.85rem'
+                    }}
+                  />
+                </div>
+                <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                  {filteredCurrencies.map(c => (
+                    <div 
+                      key={c.code}
+                      onClick={() => {
+                        handleCurrencyUpdate(c.code);
+                        setIsCurrencyOpen(false);
+                        setCurrencySearch('');
+                      }}
+                      style={{ 
+                        padding: '0.5rem 0.75rem', 
+                        borderRadius: '0.3rem', 
+                        cursor: 'pointer',
+                        background: currency === c.code ? 'var(--primary)' : 'transparent',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        fontSize: '0.85rem'
+                      }}
+                      onMouseEnter={(e) => { if(currency !== c.code) e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}
+                      onMouseLeave={(e) => { if(currency !== c.code) e.currentTarget.style.background = 'transparent'; }}
+                    >
+                      <span>{c.code} - <span style={{ opacity: 0.7 }}>{c.name}</span></span>
+                      {currency === c.code && <Check size={14} />}
+                    </div>
+                  ))}
+                  {filteredCurrencies.length === 0 && (
+                    <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                      No currencies found
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+          <button onClick={logout} className="btn" style={{ background: 'var(--glass)', color: 'var(--text)' }}>
+            <LogOut size={18} /> Logout
+          </button>
+        </div>
       </header>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '2rem' }}>
+      <div className="dashboard-grid">
         {/* Left Column - Lists */}
         <div>
           <div className="glass-card" style={{ marginBottom: '2rem' }}>
@@ -144,14 +313,14 @@ const Dashboard = () => {
           </div>
 
           <div className="glass-card" style={{ background: 'var(--primary)', color: 'white' }}>
-            <h4>Total Balance</h4>
-            <h2 style={{ fontSize: '2.5rem', margin: '0.5rem 0' }}>${totalGot - totalSpent}</h2>
+            <h4>Total Balance ({currency})</h4>
+            <h2 style={{ fontSize: '2.5rem', margin: '0.5rem 0' }}>{currencySymbol}{totalGot - totalSpent}</h2>
             <div style={{ display: 'flex', gap: '1rem', fontSize: '0.875rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                <ArrowUpCircle size={14} /> ${totalGot}
+                <ArrowUpCircle size={14} /> {currencySymbol}{totalGot}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                <ArrowDownCircle size={14} /> ${totalSpent}
+                <ArrowDownCircle size={14} /> {currencySymbol}{totalSpent}
               </div>
             </div>
           </div>
@@ -161,20 +330,31 @@ const Dashboard = () => {
         <div className="glass-card" style={{ minHeight: '600px' }}>
           {selectedList ? (
             <>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+              <div className="flex-between-responsive" style={{ marginBottom: '2rem' }}>
                 <h2>{selectedList.name}</h2>
-                <VoiceInput onResult={handleVoiceTransaction} />
+                <VoiceInput onResult={handleVoiceTransaction} lang={voiceLanguage} />
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {transactions.map(t => (
                   <div key={t._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: 'var(--glass)', borderRadius: '0.5rem' }}>
-                    <div>
-                      <div style={{ fontWeight: '600' }}>{t.description}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{new Date(t.createdAt).toLocaleDateString()}</div>
-                    </div>
-                    <div style={{ fontWeight: '700', color: t.type === 'spent' ? 'var(--danger)' : 'var(--success)' }}>
-                      {t.type === 'spent' ? '-' : '+'}${t.amount}
+                    <div style={{ fontWeight: '600' }}>{t.description}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontWeight: '700', color: t.type === 'spent' ? 'var(--danger)' : 'var(--success)' }}>
+                          {t.type === 'spent' ? '-' : '+'}{t.currencySymbol || currencySymbol}{t.amount}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{new Date(t.createdAt).toLocaleDateString()}</div>
+                      </div>
+                      <button 
+                        onClick={() => deleteTransaction(t._id)}
+                        className="btn-icon"
+                        style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0.5rem', borderRadius: '50%', display: 'flex', transition: '0.2s' }}
+                        onMouseEnter={(e) => e.currentTarget.style.color = 'var(--danger)'}
+                        onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </div>
                   </div>
                 ))}
