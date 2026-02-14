@@ -18,6 +18,9 @@ const Dashboard = () => {
   const [voiceLanguage, setVoiceLanguage] = useState(user.preferredLanguage || 'en-US');
   const [editingTransactionId, setEditingTransactionId] = useState(null);
   const [editForm, setEditForm] = useState({ description: '', amount: 0, type: 'spent' });
+  const [timeFilter, setTimeFilter] = useState('all'); // all, today, week, month, custom-date, custom-month
+  const [customDate, setCustomDate] = useState(new Date().toISOString().split('T')[0]);
+  const [customMonth, setCustomMonth] = useState(new Date().toISOString().slice(0, 7));
 
   const voiceLanguages = [
     { code: 'en-US', name: 'English (US)' },
@@ -179,8 +182,43 @@ const Dashboard = () => {
     window.location.href = '/login';
   };
 
-  const totalSpent = transactions.filter(t => t.type === 'spent').reduce((acc, t) => acc + t.amount, 0);
-  const totalGot = transactions.filter(t => t.type === 'got').reduce((acc, t) => acc + t.amount, 0);
+  const getFilteredTransactions = () => {
+    if (timeFilter === 'all') return transactions;
+    
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    return transactions.filter(t => {
+      const tDate = new Date(t.createdAt);
+      if (timeFilter === 'today') {
+        return tDate >= today;
+      }
+      if (timeFilter === 'week') {
+        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        return tDate >= weekAgo;
+      }
+      if (timeFilter === 'month') {
+        const monthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+        return tDate >= monthAgo;
+      }
+      if (timeFilter === 'custom-date') {
+        const targetDate = new Date(customDate);
+        return tDate.getFullYear() === targetDate.getFullYear() &&
+               tDate.getMonth() === targetDate.getMonth() &&
+               tDate.getDate() === targetDate.getDate();
+      }
+      if (timeFilter === 'custom-month') {
+        const [year, month] = customMonth.split('-');
+        return tDate.getFullYear() === parseInt(year) &&
+               tDate.getMonth() === parseInt(month) - 1;
+      }
+      return true;
+    });
+  };
+
+  const filteredTransactions = getFilteredTransactions();
+  const totalSpent = filteredTransactions.filter(t => t.type === 'spent').reduce((acc, t) => acc + t.amount, 0);
+  const totalGot = filteredTransactions.filter(t => t.type === 'got').reduce((acc, t) => acc + t.amount, 0);
 
   return (
     <div className="container" style={{ padding: '2rem 1rem' }}>
@@ -330,7 +368,43 @@ const Dashboard = () => {
           </div>
 
           <div className="glass-card" style={{ background: 'var(--primary)', color: 'white' }}>
-            <h4>Total Balance ({currency})</h4>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h4 style={{ margin: 0 }}>Period Summary</h4>
+              <select 
+                value={timeFilter} 
+                onChange={(e) => setTimeFilter(e.target.value)}
+                style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', fontSize: '0.75rem', padding: '0.25rem 0.5rem', borderRadius: '0.3rem', outline: 'none', cursor: 'pointer' }}
+              >
+                <option value="all" style={{ background: '#1e293b' }}>All Time</option>
+                <option value="today" style={{ background: '#1e293b' }}>Today</option>
+                <option value="week" style={{ background: '#1e293b' }}>This Week</option>
+                <option value="month" style={{ background: '#1e293b' }}>This Month</option>
+                <option value="custom-date" style={{ background: '#1e293b' }}>Specific Date</option>
+                <option value="custom-month" style={{ background: '#1e293b' }}>Specific Month</option>
+              </select>
+            </div>
+
+            {(timeFilter === 'custom-date' || timeFilter === 'custom-month') && (
+              <div style={{ marginBottom: '1rem', display: 'flex', gap: '0.5rem', animation: 'fadeIn 0.3s' }}>
+                {timeFilter === 'custom-date' && (
+                  <input 
+                    type="date" 
+                    value={customDate}
+                    onChange={(e) => setCustomDate(e.target.value)}
+                    style={{ flex: 1, padding: '0.4rem', borderRadius: '0.4rem', background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', fontSize: '0.8rem', outline: 'none' }}
+                  />
+                )}
+                {timeFilter === 'custom-month' && (
+                  <input 
+                    type="month" 
+                    value={customMonth}
+                    onChange={(e) => setCustomMonth(e.target.value)}
+                    style={{ flex: 1, padding: '0.4rem', borderRadius: '0.4rem', background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', fontSize: '0.8rem', outline: 'none' }}
+                  />
+                )}
+              </div>
+            )}
+
             <h2 style={{ fontSize: '2.5rem', margin: '0.5rem 0' }}>{currencySymbol}{totalGot - totalSpent}</h2>
             <div style={{ display: 'flex', gap: '1rem', fontSize: '0.875rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
@@ -353,7 +427,7 @@ const Dashboard = () => {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {transactions.map(t => (
+                {filteredTransactions.map(t => (
                   <div key={t._id} style={{ padding: '1rem', background: 'var(--glass)', borderRadius: '0.5rem' }}>
                     {editingTransactionId === t._id ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
