@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../api';
 import { CheckCircle, XCircle, Loader } from 'lucide-react';
@@ -8,7 +8,12 @@ const VerifyEmail = () => {
   const [status, setStatus] = useState('verifying'); // verifying, success, error
   const [message, setMessage] = useState('');
 
+  const dataFetchedRef = useRef(false);
+
   useEffect(() => {
+    if (dataFetchedRef.current) return;
+    dataFetchedRef.current = true;
+
     const verifyEmail = async () => {
       try {
         const res = await api.get(`/auth/verify-email/${token}`);
