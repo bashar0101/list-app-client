@@ -49,6 +49,9 @@ const Login = () => {
             <label>Password</label>
             <input type="password" name="password" value={formData.password} onChange={handleChange} required />
           </div>
+          <div style={{ textAlign: 'right', marginBottom: '1rem' }}>
+            <Link to="/forgot-password" style={{ color: 'var(--primary)', textDecoration: 'none', fontSize: '0.9rem' }}>Forgot Password?</Link>
+          </div>
           <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}>
             Login
           </button>
