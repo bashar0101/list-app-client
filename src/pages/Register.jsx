@@ -11,6 +11,7 @@ const Register = () => {
     password: ''
   });
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -19,11 +20,12 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
+    setSuccess('');
     try {
       const res = await api.post('/auth/register', formData);
-      localStorage.setItem('token', res.data.token);
-      localStorage.setItem('user', JSON.stringify(res.data.user));
-      navigate('/dashboard');
+      setSuccess(res.data.message);
+      // No auto-login
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed');
     }
@@ -41,8 +43,10 @@ const Register = () => {
         </div>
 
         {error && <div style={{ color: 'var(--danger)', marginBottom: '1rem', textAlign: 'center' }}>{error}</div>}
+        {success && <div style={{ color: 'var(--success)', marginBottom: '1rem', textAlign: 'center' }}>{success}</div>}
 
-        <form onSubmit={handleSubmit}>
+        {!success && (
+          <form onSubmit={handleSubmit}>
           <div className="input-group">
             <label>First Name</label>
             <input type="text" name="firstname" value={formData.firstname} onChange={handleChange} required />
@@ -63,6 +67,7 @@ const Register = () => {
             Register
           </button>
         </form>
+        )}
 
         <p style={{ textAlign: 'center', marginTop: '1.5rem', color: 'var(--text-muted)' }}>
           Already have an account? <Link to="/login" style={{ color: 'var(--primary)', textDecoration: 'none' }}>Login</Link>
